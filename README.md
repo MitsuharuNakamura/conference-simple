@@ -6,7 +6,7 @@
 
 ### Functions
 - `/start-call` - カンファレンスに参加するメンバーへの発信を開始
-- `/join-conference` - 録音付きで会議に参加するためのTwiMLエンドポイント
+- `/join-conference` - 録音付きでConferenceに参加するためのTwiMLエンドポイント
 - `/recording-status` - 録音完了通知を受信するWebhookエンドポイント
 - `/token.js` - ブラウザ電話用のトークンサーバ
 
@@ -17,7 +17,7 @@
 ### 主な機能
 - 複数の参加者への自動発信
 - 日本語音声案内付きのConference接続
-- 会議開始時からの自動録音
+- Conference開始時からの自動録音
 - 録音完了時のURL記録
 
 ## 開発コマンド
@@ -36,8 +36,8 @@ twilio serverless:deploy
 - `API_KEY` - TwilioのAPI Key
 - `API_SECRET` - TwilioのAPI Secret
 
-### 会議通話の開始
-`start-call`を実行する際には。`phoneNumbers`に会議参加者の電話番号、ブラウザ電話のID、SIPのアドレスのどれかを2〜最大10個まで指定できます。
+### Conference通話の開始
+`start-call`を実行する際には。`phoneNumbers`にConference参加者の電話番号、ブラウザ電話のID、SIPのアドレスのどれかを2〜最大10個まで指定できます。
 - 電話番号は、E164形式（+81xxxxx）国番号から始まる電話番号を指定。
 - ブラウザ電話のIDは、「client:」をつけてブラウザ電話に入力した任意のIDを指定。
 - SIPのアドレスは、「sip:」をつけて指定のSIPアドレスを指定。
@@ -51,10 +51,10 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
   -d "phoneNumbers=+8190xxxxx,sip:sipuser1@xxx.sip.twilio.com,client:test1"
 
 #### ブラウザ電話同士
-2つの端末で下記にアクセスし、ユーザー名をtest1, test2ではいる。
+2つの端末で下記のような形でURLにアクセスし、ユーザー名をtest1, test2ではいる。
 https://conference-xxxx-xxxxxx-dev.twil.io/phone.html
 
-### 会議設定
+### Conference設定
 - Conference名: `conf-room-xxxxxxxxxx`
 - 録音: 開始時から自動
 - 録音形式: MP3とWAVで利用可能
