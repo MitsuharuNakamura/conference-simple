@@ -1,6 +1,6 @@
 ## プロジェクト概要
 
-このプロジェクトは、Twilio Serverlessを使用して複数人での電話会議システムを実装しています。自動録音機能付きで、TwilioのVoice APIを使用して2つの電話番号に発信し、Conferenceで接続します。
+このプロジェクトは、Twilio Serverlessを使用して複数人での電話会議システムを実装しています。自動録音機能付きで、TwilioのVoice APIを使用して複数の参加者に発信し、Conferenceで接続します。
 
 ## アーキテクチャ
 
@@ -15,7 +15,7 @@
 - `twilio.min.js` - Twilio Programmable Voice SDK v2
 
 ### 主な機能
-- 2つの電話番号への自動発信
+- 複数の参加者への自動発信
 - 日本語音声案内付きのConference接続
 - 会議開始時からの自動録音
 - 録音完了時のURL記録

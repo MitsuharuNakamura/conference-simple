@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブラウザ電話</title>
+    <script src="./twilio.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .status {
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        button {
+            font-size: 18px;
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #answer-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #answer-button:hover {
+            background-color: #45a049;
+        }
+        #hangup-button {
+            background-color: #f44336;
+            color: white;
+        }
+        #hangup-button:hover {
+            background-color: #da190b;
+        }
+        #hangup-button:disabled, #answer-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196F3;
+            padding-left: 10px;
+        }
+        .user-input {
+            text-align: center;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        #username-input {
+            font-size: 16px;
+            padding: 10px;
+            width: 250px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #connect-button {
+            background-color: #2196F3;
+            color: white;
+            font-size: 16px;
+            padding: 10px 20px;
+        }
+        #connect-button:hover {
+            background-color: #0b7dda;
+        }
+        .user-info {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>ブラウザ電話</h1>
+    
+    <div class="user-input" id="user-input">
+        <input type="text" id="username-input" placeholder="ユーザー名を入力してください" autofocus>
+        <button id="connect-button">接続</button>
+    </div>
+    
+    <div class="user-info hidden" id="user-info"></div>
+    
+    <div class="status" id="status">
+        ユーザー名を入力してください
+    </div>
+    
+    <div class="controls hidden" id="controls">
+        <button id="answer-button" disabled>電話に出る</button>
+        <button id="hangup-button" disabled>電話を切る</button>
+    </div>
+    
+    <div class="log" id="log">
+        <div class="log-entry">ログ:</div>
+    </div>
+
+    <script>
+        let device;
+        let activeCall;
+        let username = '';
+        const statusEl = document.getElementById('status');
+        const answerBtn = document.getElementById('answer-button');
+        const hangupBtn = document.getElementById('hangup-button');
+        const logEl = document.getElementById('log');
+        const usernameInput = document.getElementById('username-input');
+        const connectBtn = document.getElementById('connect-button');
+        const userInputDiv = document.getElementById('user-input');
+        const userInfoDiv = document.getElementById('user-info');
+        const controlsDiv = document.getElementById('controls');
+
+        function log(message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function initializeDevice() {
+            try {
+                log(`${username}でアクセストークンを取得中...`);
+                const response = await fetch(`/token?identity=${encodeURIComponent(username)}`);
+                const data = await response.json();
+                
+                log('Twilio Voice SDK 2.0 Deviceを初期化中...');
+                device = new Twilio.Device(data.token, {
+                    codecPreferences: ['opus', 'pcmu'],
+                    fakeLocalDTMF: true,
+                    enableRingingState: true
+                });
+                
+                await device.register();
+                log('デバイスの登録完了');
+                statusEl.textContent = '着信待機中...';
+                statusEl.style.backgroundColor = '#d4edda';
+                
+                // デバイスイベントリスナー
+                device.on('error', (error) => {
+                    log(`エラー: ${error.message}`);
+                    statusEl.textContent = `エラー: ${error.message}`;
+                    statusEl.style.backgroundColor = '#f8d7da';
+                });
+                
+                device.on('incoming', (call) => {
+                    log('着信あり');
+                    activeCall = call;
+                    statusEl.textContent = '着信中...';
+                    statusEl.style.backgroundColor = '#cce5ff';
+                    answerBtn.disabled = false;
+                    
+                    // 通話イベントリスナー
+                    call.on('accept', () => {
+                        log('通話開始');
+                        statusEl.textContent = '通話中...';
+                        statusEl.style.backgroundColor = '#d1ecf1';
+                        answerBtn.disabled = true;
+                        hangupBtn.disabled = false;
+                    });
+                    
+                    call.on('disconnect', () => {
+                        log('通話終了');
+                        statusEl.textContent = '着信待機中...';
+                        statusEl.style.backgroundColor = '#d4edda';
+                        answerBtn.disabled = true;
+                        hangupBtn.disabled = true;
+                        activeCall = null;
+                    });
+                    
+                    call.on('cancel', () => {
+                        log('着信キャンセル');
+                        statusEl.textContent = '着信待機中...';
+                        statusEl.style.backgroundColor = '#d4edda';
+                        answerBtn.disabled = true;
+                        activeCall = null;
+                    });
+                    
+                    call.on('reject', () => {
+                        log('着信拒否');
+                        statusEl.textContent = '着信待機中...';
+                        statusEl.style.backgroundColor = '#d4edda';
+                        answerBtn.disabled = true;
+                        activeCall = null;
+                    });
+                });
+                
+                device.on('tokenWillExpire', async () => {
+                    log('トークンの期限が近づいています。更新中...');
+                    const response = await fetch(`/token?identity=${encodeURIComponent(username)}`);
+                    const data = await response.json();
+                    await device.updateToken(data.token);
+                    log('トークンを更新しました');
+                });
+                
+                device.on('registered', () => {
+                    log('デバイス登録成功');
+                });
+                
+                device.on('unregistered', () => {
+                    log('デバイス登録解除');
+                    statusEl.textContent = '切断されました';
+                    statusEl.style.backgroundColor = '#f0f0f0';
+                });
+                
+            } catch (error) {
+                log(`初期化エラー: ${error.message}`);
+                statusEl.textContent = `初期化エラー: ${error.message}`;
+                statusEl.style.backgroundColor = '#f8d7da';
+            }
+        }
+        
+        answerBtn.addEventListener('click', async () => {
+            if (activeCall) {
+                log('電話に出ます...');
+                await activeCall.accept();
+            }
+        });
+        
+        hangupBtn.addEventListener('click', async () => {
+            if (activeCall) {
+                log('電話を切ります...');
+                activeCall.disconnect();
+            }
+        });
+        
+        connectBtn.addEventListener('click', async () => {
+            const inputUsername = usernameInput.value.trim();
+            if (!inputUsername) {
+                alert('ユーザー名を入力してください');
+                return;
+            }
+            
+            username = inputUsername;
+            
+            // UIを更新
+            userInputDiv.classList.add('hidden');
+            userInfoDiv.textContent = `ユーザー: ${username}`;
+            userInfoDiv.classList.remove('hidden');
+            controlsDiv.classList.remove('hidden');
+            
+            // デバイスを初期化
+            await initializeDevice();
+        });
+        
+        // Enterキーでも接続できるように
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                connectBtn.click();
+            }
+        });
+        
+        // ページ離脱時にクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            if (device) {
+                device.destroy();
+            }
+        });
+    </script>
+</body>
+</html>
