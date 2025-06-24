@@ -162,7 +162,7 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
      -d "phoneNumbers=client:test1,client:test2"
    ```
 
-## ⚙️ 設定詳細
+## 設定詳細
 
 ### 会議室の設定
 - **会議室名**: `conf-room-xxxxxxxxxx` (ランダム生成)
@@ -176,7 +176,7 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
 参加者には以下の日本語案内が流れます：
 > "相手に接続します。通話は録音されます。"
 
-## 📝 録音について
+## 録音について
 
 - 会議開始と同時に自動的に録音開始
 - 録音完了後、`/recording-status`のログに録音URLが出力
@@ -192,7 +192,7 @@ curl -u ACCOUNT_SID:AUTH_TOKEN \
   --output recording.mp3
 ```
 
-## 🧪 開発・テスト
+## 開発・テスト
 
 ### ローカル開発
 
@@ -211,7 +211,7 @@ twilio serverless:start --port 3001
 twilio serverless:logs --environment=dev
 ```
 
-## 🐛 トラブルシューティング
+## トラブルシューティング
 
 ### よくある問題
 
@@ -228,15 +228,7 @@ twilio serverless:logs --environment=dev
    - ACCOUNT_SIDとAUTH_TOKENが正しいか確認
    - 録音が完了するまで待つ（会議終了後）
 
-## 📄 ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
-
-## 🤝 コントリビューション
-
-プルリクエストを歓迎します。大きな変更の場合は、まずイシューを作成して変更内容について議論してください。
-
-## 📧 サポート
+## サポート
 
 問題や質問がある場合は、[Issues](https://github.com/yourusername/conference-simple/issues)でお知らせください。
 
