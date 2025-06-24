@@ -54,6 +54,23 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+        #mute-button {
+            background-color: #FF9800;
+            color: white;
+        }
+        #mute-button:hover {
+            background-color: #e68900;
+        }
+        #mute-button.muted {
+            background-color: #9E9E9E;
+        }
+        #mute-button.muted:hover {
+            background-color: #757575;
+        }
+        #mute-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .log {
             margin-top: 20px;
             padding: 10px;
@@ -121,6 +138,7 @@
     <div class="controls hidden" id="controls">
         <button id="answer-button" disabled>電話に出る</button>
         <button id="hangup-button" disabled>電話を切る</button>
+        <button id="mute-button" disabled>ミュート</button>
     </div>
     
     <div class="log" id="log">
@@ -131,9 +149,11 @@
         let device;
         let activeCall;
         let username = '';
+        let isMuted = false;
         const statusEl = document.getElementById('status');
         const answerBtn = document.getElementById('answer-button');
         const hangupBtn = document.getElementById('hangup-button');
+        const muteBtn = document.getElementById('mute-button');
         const logEl = document.getElementById('log');
         const usernameInput = document.getElementById('username-input');
         const connectBtn = document.getElementById('connect-button');
@@ -188,6 +208,7 @@
                         statusEl.style.backgroundColor = '#d1ecf1';
                         answerBtn.disabled = true;
                         hangupBtn.disabled = false;
+                        muteBtn.disabled = false;
                     });
                     
                     call.on('disconnect', () => {
@@ -196,7 +217,11 @@
                         statusEl.style.backgroundColor = '#d4edda';
                         answerBtn.disabled = true;
                         hangupBtn.disabled = true;
+                        muteBtn.disabled = true;
                         activeCall = null;
+                        isMuted = false;
+                        muteBtn.textContent = 'ミュート';
+                        muteBtn.classList.remove('muted');
                     });
                     
                     call.on('cancel', () => {
@@ -252,6 +277,23 @@
             if (activeCall) {
                 log('電話を切ります...');
                 activeCall.disconnect();
+            }
+        });
+        
+        muteBtn.addEventListener('click', () => {
+            if (activeCall) {
+                isMuted = !isMuted;
+                activeCall.mute(isMuted);
+                
+                if (isMuted) {
+                    log('マイクをミュートしました');
+                    muteBtn.textContent = 'ミュート解除';
+                    muteBtn.classList.add('muted');
+                } else {
+                    log('マイクのミュートを解除しました');
+                    muteBtn.textContent = 'ミュート';
+                    muteBtn.classList.remove('muted');
+                }
             }
         });
         
