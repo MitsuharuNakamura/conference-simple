@@ -29,7 +29,7 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/yourusername/conference-simple.git
+git clone https://github.com/MitsuharuNakamura/conference-simple.git
 cd conference-simple
 ```
 
