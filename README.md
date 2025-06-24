@@ -91,7 +91,7 @@ twilio serverless:deploy --environment=production
 デプロイ後、以下のようなURLが表示されます：
 - Functions: `https://conference-xxxx-xxxxxx-dev.twil.io/`
 
-## 🏗️ アーキテクチャ
+## アーキテクチャ
 
 ### Functions
 - `/start-call` - カンファレンスに参加するメンバーへの発信を開始
@@ -109,7 +109,7 @@ twilio serverless:deploy --environment=production
 - Conference開始時からの自動録音
 - 録音完了時のURL記録
 
-## 📱 使い方
+## 使い方
 
 ### 電話会議の開始
 #### 基本的な使い方
