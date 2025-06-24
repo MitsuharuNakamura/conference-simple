@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 複数人での電話会議を簡単に開始できるTwilio Serverlessアプリケーションです。自動録音機能付きで、電話番号・ブラウザ電話・SIPアドレスへの発信に対応しています。
-start-callのURLを実行した際に、引数で会議に招集したい人の宛先を指定することで、同じ会議に対して招集できます。
+start-callのURLを実行した際に、引数で会議に招集したい人の宛先を指定することで、同じ会議に対して招集できます。また、ブラウザ電話から会議を主催することも可能です。
 
 ## デモ
 
@@ -17,7 +17,7 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
 
 以下のツール・アカウントが必要です：
 
-- **Node.js** (v18以上推奨)
+- **Node.js** (v22以上推奨)
 - **npm** または **yarn**
 - **Twilio CLI** 
 - **Twilioアカウント** (有料プランが必要)
@@ -76,6 +76,11 @@ AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # https://console.twilio.com/console/project/api-keys
 API_KEY=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Twilioで購入した電話番号（発信者番号として利用）
+TWILIO_PHONE_NUMBER=+xxxxxxxxxxxx
+# ブラウザ電話から会議を招集する際に利用
+TWIML_APP_SID=APxxxxxxxxxxxxx
 ```
 
 ### 6. デプロイ
@@ -97,16 +102,21 @@ twilio serverless:deploy --environment=production
 - `/start-call` - カンファレンスに参加するメンバーへの発信を開始
 - `/join-conference` - 録音付きでConferenceに参加するためのTwiMLエンドポイント
 - `/recording-status` - 録音完了通知を受信するWebhookエンドポイント
-- `/token.js` - ブラウザ電話用のトークンサーバ
+- `/token` - ブラウザ電話用のアクセストークン生成
+- `/voice` - ブラウザ電話からの発信処理（TwiML App用）
+- `/create-conference` - 会議作成と参加者招待のAPI
+- `/add-participants` - 既存の会議に参加者を追加招集するAPI
 
 ### Assets
-- `/phone.html` - ブラウザ電話（着信専用）
-- `twilio.min.js` - Twilio Programmable Voice SDK v2
+- `/phone.html` - ブラウザ電話（着信・発信・会議主催機能付き）
+- `/twilio.min.js` - Twilio Programmable Voice SDK v2
 
 ### 主な機能
 - 複数の参加者への自動発信
+- ブラウザ電話からの会議主催機能
+- 会議中の追加参加者招集機能
 - 日本語音声案内付きのConference接続
-- Conference開始時からの自動録音
+- Conference開始時からの自動録音（Dual録音対応）
 - 録音完了時のURL記録
 
 ## 使い方
@@ -145,7 +155,9 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
    phoneNumbers=sip:sipuser1@domain.sip.twilio.com
    ```
 
-### ブラウザ電話の利用(受電専用)
+### ブラウザ電話の利用
+
+#### 着信機能
 
 1. 以下のURLにアクセス：
    ```
@@ -162,13 +174,45 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
      -d "phoneNumbers=client:test1,client:test2"
    ```
 
+#### 会議主催機能（新機能）
+
+1. ブラウザ電話にアクセスしてユーザー名でログイン
+
+2. 「会議を主催」セクションで参加者の電話番号をカンマ区切りで入力：
+   ```
+   +8190xxxxx,+8180xxxxx,client:test2
+   ```
+
+3. 「会議を開始」ボタンをクリック
+
+4. 主催者が会議室に参加すると、自動的に指定した参加者に発信されます
+
+#### 会議中の追加招集機能（新機能）
+
+1. 会議開始後、「参加者を追加」セクションが自動的に表示されます
+
+2. 追加したい参加者の電話番号をカンマ区切りで入力：
+   ```
+   +8190xxxxx,client:test3,sip:user@domain.sip.twilio.com
+   ```
+
+3. 「参加者を追加」ボタンをクリック
+
+4. 新しい参加者に自動的に発信され、既存の会議に参加します
+
+**追加招集の特徴**：
+- 会議中いつでも新しい参加者を追加可能
+- 複数の参加者を一度に追加可能
+- 電話番号、ブラウザ電話（client:）、SIPアドレスすべてに対応
+- 追加された参加者も自動的に録音対象に含まれる
+
 ## 設定詳細
 
 ### 会議室の設定
 - **会議室名**: `conf-room-xxxxxxxxxx` (ランダム生成)
-- **最大参加者数**: 10人
-- **タイムアウト**: 120秒（2分）
+- **最大参加者数**: 10人（追加招集含む）
 - **録音**: 自動開始（MP3/WAV形式）
+- **録音チャンネル**: Dual録音（各参加者の音声を別チャンネルで録音）
 - **音声案内**: 日本語（ja-JP）
 
 ### 音声案内
@@ -181,7 +225,7 @@ curl -X POST https://conference-xxxx-xxxxxx-dev.twil.io/start-call \
 - 会議開始と同時に自動的に録音開始
 - 録音完了後、`/recording-status`のログに録音URLが出力
 - 録音形式：MP3およびWAV形式で利用可能
-- ステレオ録音（RequestedChannels=2）対応
+- ステレオ録音（RequestedChannels=2）でダウンロード可能
 
 ### 録音ファイルの取得例
 
@@ -192,45 +236,36 @@ curl -u ACCOUNT_SID:AUTH_TOKEN \
   --output recording.mp3
 ```
 
-## 開発・テスト
+## セットアップ手順（ブラウザ電話会議主催機能）
 
-### ローカル開発
+ブラウザ電話から会議を主催するには、以下の追加設定が必要です：
 
+### 1. TwiML Appの設定
+
+1. [Twilioコンソール](https://console.twilio.com)にログイン
+2. Develop > Voice > Manage > TwiML Apps にアクセス
+3. 新しいTwiML Appを作成または既存のものを編集
+4. Voice URLに以下を設定：
+   - Request URL: `https://conference-xxxx-xxxxxx-dev.twil.io/voice`
+   - HTTP Method: `POST`
+5. 保存してTwiML App SIDをコピー
+
+### 2. 環境変数の追加
+`.env`ファイルにTwimlAppのSIDを設定
+
+```
 ```bash
-# ローカルサーバーの起動
-twilio serverless:start
-
-# 特定のポートで起動
-twilio serverless:start --port 3001
+# Twilioで購入した電話番号（発信者番号として利用）
+TWILIO_PHONE_NUMBER=+xxxxxxxxxxxx
+# ブラウザ電話から会議を招集する際に利用
+TWIML_APP_SID=APxxxxxxxxxxxxx
 ```
 
-### ログの確認
-
-```bash
-# デプロイ済み関数のログを確認
-twilio serverless:logs --environment=dev
 ```
 
-## トラブルシューティング
+### 3. API Keyの作成（未作成の場合）
 
-### よくある問題
-
-1. **発信が失敗する**
-   - Twilioアカウントに十分なクレジットがあるか確認
-   - 発信先の電話番号が正しい形式か確認
-   - Twilioの電話番号が購入済みか確認
-
-2. **ブラウザ電話が動作しない**
-   - HTTPSでアクセスしているか確認
-   - マイクの権限が許可されているか確認
-
-3. **録音ファイルが取得できない**
-   - ACCOUNT_SIDとAUTH_TOKENが正しいか確認
-   - 録音が完了するまで待つ（会議終了後）
-
-## サポート
-
-問題や質問がある場合は、[Issues](https://github.com/yourusername/conference-simple/issues)でお知らせください。
-
-
-
+1. [API Keys](https://console.twilio.com/us1/account/keys)にアクセス
+2. "Create new API Key"をクリック
+3. Friendly Name: `Browser Phone Key`、Key Type: `Standard`
+4. 作成後、SIDとSecretを環境変数に設定

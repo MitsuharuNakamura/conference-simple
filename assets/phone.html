@@ -141,6 +141,22 @@
         <button id="mute-button" disabled>ミュート</button>
     </div>
     
+    <div class="conference-controls hidden" id="conference-controls">
+        <h3>会議を主催</h3>
+        <div style="margin: 20px 0;">
+            <input type="text" id="conference-participants" placeholder="参加者の電話番号をカンマ区切りで入力 (例: +819012345678,+819087654321)" 
+                   style="width: 100%; font-size: 14px; padding: 10px; border: 2px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+            <button id="start-conference-button" style="background-color: #4CAF50; color: white; width: 100%;">会議を開始</button>
+        </div>
+        
+        <div id="add-participants-section" style="margin: 20px 0; display: none;">
+            <h4>参加者を追加</h4>
+            <input type="text" id="additional-participants" placeholder="追加する電話番号をカンマ区切りで入力" 
+                   style="width: 100%; font-size: 14px; padding: 10px; border: 2px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+            <button id="add-participants-button" style="background-color: #2196F3; color: white; width: 100%;">参加者を追加</button>
+        </div>
+    </div>
+    
     <div class="log" id="log">
         <div class="log-entry">ログ:</div>
     </div>
@@ -150,6 +166,7 @@
         let activeCall;
         let username = '';
         let isMuted = false;
+        let conferenceRoomName = null;
         const statusEl = document.getElementById('status');
         const answerBtn = document.getElementById('answer-button');
         const hangupBtn = document.getElementById('hangup-button');
@@ -160,6 +177,12 @@
         const userInputDiv = document.getElementById('user-input');
         const userInfoDiv = document.getElementById('user-info');
         const controlsDiv = document.getElementById('controls');
+        const conferenceControlsDiv = document.getElementById('conference-controls');
+        const startConferenceBtn = document.getElementById('start-conference-button');
+        const conferenceParticipantsInput = document.getElementById('conference-participants');
+        const addParticipantsSection = document.getElementById('add-participants-section');
+        const addParticipantsBtn = document.getElementById('add-participants-button');
+        const additionalParticipantsInput = document.getElementById('additional-participants');
 
         function log(message) {
             const entry = document.createElement('div');
@@ -311,6 +334,7 @@
             userInfoDiv.textContent = `ユーザー: ${username}`;
             userInfoDiv.classList.remove('hidden');
             controlsDiv.classList.remove('hidden');
+            conferenceControlsDiv.classList.remove('hidden');
             
             // デバイスを初期化
             await initializeDevice();
@@ -320,6 +344,155 @@
         usernameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 connectBtn.click();
+            }
+        });
+        
+        // 会議開始ボタンのイベントリスナー
+        startConferenceBtn.addEventListener('click', async () => {
+            const participants = conferenceParticipantsInput.value.trim();
+            if (!participants) {
+                alert('参加者の電話番号を入力してください');
+                return;
+            }
+            
+            // カンマ区切りの電話番号をパース
+            const phoneNumbers = participants.split(',').map(num => num.trim()).filter(num => num);
+            
+            if (phoneNumbers.length === 0) {
+                alert('有効な電話番号を入力してください');
+                return;
+            }
+            
+            log('会議を開始します...');
+            
+            try {
+                // 会議室名を生成
+                conferenceRoomName = `conf-room-${Date.now()}`;
+                
+                // 主催者として会議に参加（発信）
+                const params = {
+                    To: conferenceRoomName,
+                    From: `client:${username}`
+                };
+                
+                log(`発信パラメータ: To=${params.To}, From=${params.From}`);
+                
+                // 会議に発信
+                activeCall = await device.connect({ params });
+                
+                activeCall.on('accept', async () => {
+                    log(`会議室 ${conferenceRoomName} に参加しました`);
+                    statusEl.textContent = '会議中...';
+                    statusEl.style.backgroundColor = '#d1ecf1';
+                    hangupBtn.disabled = false;
+                    muteBtn.disabled = false;
+                    startConferenceBtn.disabled = true;
+                    
+                    // 追加招集セクションを表示
+                    addParticipantsSection.style.display = 'block';
+                    
+                    // 主催者が会議に参加した後、他の参加者を呼び出す
+                    try {
+                        const response = await fetch('/create-conference', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: `conferenceRoom=${encodeURIComponent(conferenceRoomName)}&phoneNumbers=${encodeURIComponent(phoneNumbers.join(','))}`
+                        });
+                        
+                        const result = await response.json();
+                        log(`${phoneNumbers.length}名の参加者を招待しました`);
+                        
+                        if (result.callSids) {
+                            result.callSids.forEach((sid, index) => {
+                                log(`${phoneNumbers[index]} への発信SID: ${sid}`);
+                            });
+                        }
+                    } catch (error) {
+                        log(`参加者の招待中にエラー: ${error.message}`);
+                    }
+                });
+                
+                activeCall.on('disconnect', () => {
+                    log('会議から退出しました');
+                    statusEl.textContent = '着信待機中...';
+                    statusEl.style.backgroundColor = '#d4edda';
+                    hangupBtn.disabled = true;
+                    muteBtn.disabled = true;
+                    startConferenceBtn.disabled = false;
+                    activeCall = null;
+                    conferenceRoomName = null;
+                    isMuted = false;
+                    muteBtn.textContent = 'ミュート';
+                    muteBtn.classList.remove('muted');
+                    
+                    // 追加招集セクションを非表示
+                    addParticipantsSection.style.display = 'none';
+                    additionalParticipantsInput.value = '';
+                });
+                
+                activeCall.on('error', (error) => {
+                    log(`会議エラー: ${error.message}`);
+                    startConferenceBtn.disabled = false;
+                });
+                
+            } catch (error) {
+                log(`会議開始エラー: ${error.message}`);
+                startConferenceBtn.disabled = false;
+            }
+        });
+        
+        // 追加参加者ボタンのイベントリスナー
+        addParticipantsBtn.addEventListener('click', async () => {
+            const additionalNumbers = additionalParticipantsInput.value.trim();
+            if (!additionalNumbers) {
+                alert('追加する電話番号を入力してください');
+                return;
+            }
+            
+            // カンマ区切りの電話番号をパース
+            const phoneNumbers = additionalNumbers.split(',').map(num => num.trim()).filter(num => num);
+            
+            if (phoneNumbers.length === 0) {
+                alert('有効な電話番号を入力してください');
+                return;
+            }
+            
+            if (!conferenceRoomName) {
+                alert('会議が開始されていません');
+                return;
+            }
+            
+            log(`${phoneNumbers.length}名を追加招集します...`);
+            
+            try {
+                const response = await fetch('/add-participants', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `conferenceRoom=${encodeURIComponent(conferenceRoomName)}&phoneNumbers=${encodeURIComponent(phoneNumbers.join(','))}`
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`${phoneNumbers.length}名を追加招集しました`);
+                    
+                    if (result.callSids) {
+                        result.callSids.forEach((sid, index) => {
+                            log(`${phoneNumbers[index]} への追加発信SID: ${sid}`);
+                        });
+                    }
+                    
+                    // 入力欄をクリア
+                    additionalParticipantsInput.value = '';
+                } else {
+                    log(`追加招集エラー: ${result.error || '不明なエラー'}`);
+                }
+            } catch (error) {
+                log(`追加招集中にエラー: ${error.message}`);
             }
         });
         
